@@ -54,7 +54,7 @@ impl<'a> ProjectStore<'a> {
         Ok(store)
     }
 
-    pub fn for_file(config: &'a RuntimeConfig, file: &Path) -> Result<(Self, PathBuf)> {
+    pub fn for_file(config: &'a RuntimeConfig, file: &Path) -> Result<Option<(Self, PathBuf)>> {
         let absolute = fs::canonicalize(file)
             .or_else(|_| absolute_without_canonicalizing(file))
             .with_context(|| format!("failed to resolve {}", file.display()))?;
@@ -64,7 +64,11 @@ impl<'a> ProjectStore<'a> {
             .with_context(|| format!("{} is outside {}", absolute.display(), root.display()))?
             .to_path_buf();
         validate_relative_path(&relative)?;
-        Ok((Self::open(config, &root)?, relative))
+        let project_dir = config.store_dir.join("repos").join(project_id(&root));
+        if !project_dir.join("history.git").join("HEAD").exists() {
+            return Ok(None);
+        }
+        Ok(Some((Self::open(config, &root)?, relative)))
     }
 
     pub fn has_history(&self) -> Result<bool> {

@@ -126,8 +126,10 @@ fn run() -> Result<()> {
         }
         Commands::List { file, limit, json } => {
             let config = RuntimeConfig::load(cli.config.as_deref())?;
-            let (store, relative) = ProjectStore::for_file(&config, &file)?;
-            let snapshots = store.list_file(&relative, limit)?;
+            let snapshots = match ProjectStore::for_file(&config, &file)? {
+                Some((store, relative)) => store.list_file(&relative, limit)?,
+                None => Vec::new(),
+            };
             if json {
                 println!("{}", serde_json::to_string(&snapshots)?);
             } else {
@@ -141,12 +143,13 @@ fn run() -> Result<()> {
         }
         Commands::Show { file, revision } => {
             let config = RuntimeConfig::load(cli.config.as_deref())?;
-            let (store, relative) = ProjectStore::for_file(&config, &file)?;
-            if let Some(contents) = store.show_file(&relative, &revision)? {
-                std::io::stdout()
-                    .lock()
-                    .write_all(&contents)
-                    .context("failed to write snapshot to stdout")?;
+            if let Some((store, relative)) = ProjectStore::for_file(&config, &file)? {
+                if let Some(contents) = store.show_file(&relative, &revision)? {
+                    std::io::stdout()
+                        .lock()
+                        .write_all(&contents)
+                        .context("failed to write snapshot to stdout")?;
+                }
             }
         }
         Commands::Paths { json } => {
