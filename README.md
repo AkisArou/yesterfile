@@ -20,7 +20,7 @@ notifications on Windows.
 ## Install
 
 ~~~sh
-cargo install --path . --root ~/.local
+cargo install --path .
 local-history init
 ~~~
 
