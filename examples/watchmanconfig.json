@@ -1,0 +1,11 @@
+{
+  "settle": 20,
+  "ignore_dirs": [
+    "node_modules",
+    "dist",
+    "build",
+    "target",
+    ".cache"
+  ]
+}
+

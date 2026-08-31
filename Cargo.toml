@@ -1,0 +1,24 @@
+[package]
+name = "local-history"
+version = "0.1.0"
+edition = "2024"
+description = "Event-driven, Git-backed local file history powered by Watchman"
+license = "MIT"
+repository = "https://github.com/AkisArou/local-history"
+rust-version = "1.85"
+
+[dependencies]
+anyhow = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4.5", features = ["derive"] }
+dirs = "6.0"
+fs2 = "0.4"
+globset = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+walkdir = "2.5"
+
+[dev-dependencies]
+tempfile = "3.20"
+
