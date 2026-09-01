@@ -3,10 +3,10 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>io.github.akisArou.local-history</string>
+  <string>io.github.akisArou.yesterfile</string>
   <key>ProgramArguments</key>
   <array>
-    <string>__LOCAL_HISTORY_BIN__</string>
+    <string>__YESTERFILE_BIN__</string>
     <string>daemon</string>
   </array>
   <key>EnvironmentVariables</key>

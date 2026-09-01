@@ -30,10 +30,11 @@ pub fn discover(config: &RuntimeConfig) -> Result<Vec<PathBuf>> {
 
     // Explicit repositories are independent of discovery_roots. In particular,
     // an empty discovery_roots array means that only this loop contributes roots.
-    for value in &config.values.repositories {
+    for repository in &config.values.repositories {
+        let value = repository.path();
         let candidate = expand_path(value)?;
         if !candidate.is_absolute() {
-            eprintln!("local-history: repository path must be absolute or start with ~: {value}");
+            eprintln!("yesterfile: repository path must be absolute or start with ~: {value}");
             continue;
         }
         match git_root(&candidate) {
@@ -41,19 +42,19 @@ pub fn discover(config: &RuntimeConfig) -> Result<Vec<PathBuf>> {
                 projects.insert(root);
             }
             Ok(_) => {}
-            Err(error) => eprintln!("local-history: skipping {}: {error:#}", candidate.display()),
+            Err(error) => eprintln!("yesterfile: skipping {}: {error:#}", candidate.display()),
         }
     }
 
     for value in &config.values.discovery_roots {
         let root = expand_path(value)?;
         if !root.is_absolute() {
-            eprintln!("local-history: discovery root must be absolute or start with ~: {value}");
+            eprintln!("yesterfile: discovery root must be absolute or start with ~: {value}");
             continue;
         }
         if !root.is_dir() {
             eprintln!(
-                "local-history: discovery root does not exist: {}",
+                "yesterfile: discovery root does not exist: {}",
                 root.display()
             );
             continue;
@@ -85,7 +86,7 @@ fn discover_below(
         let entry = match entry {
             Ok(entry) => entry,
             Err(error) => {
-                eprintln!("local-history: discovery warning: {error}");
+                eprintln!("yesterfile: discovery warning: {error}");
                 continue;
             }
         };

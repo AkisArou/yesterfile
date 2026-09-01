@@ -1,12 +1,12 @@
 [Unit]
 Description=Event-driven Git-backed local file history
-Documentation=https://github.com/AkisArou/local-history
+Documentation=https://github.com/AkisArou/yesterfile
 After=graphical-session.target
 
 [Service]
 Type=simple
 Environment=PATH=%h/.cargo/bin:%h/.local/bin:/usr/local/bin:/usr/bin
-ExecStart=%h/.cargo/bin/local-history daemon
+ExecStart=%h/.cargo/bin/yesterfile daemon
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true

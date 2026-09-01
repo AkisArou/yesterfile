@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 
-pub const APP_NAME: &str = "local-history";
+pub const APP_NAME: &str = "yesterfile";
 
 #[derive(Debug, Clone)]
 pub struct AppPaths {

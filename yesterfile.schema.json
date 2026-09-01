@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/AkisArou/yesterfile/main/yesterfile.schema.json",
+  "title": "Yesterfile configuration",
+  "description": "Configuration for Yesterfile's event-driven, Git-backed file history service. Omitted properties use the defaults shown here.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri",
+      "default": "https://raw.githubusercontent.com/AkisArou/yesterfile/main/yesterfile.schema.json",
+      "description": "Associates this file with the Yesterfile JSON Schema so supported editors provide validation, completion, and hover documentation."
+    },
+    "discovery_roots": {
+      "type": "array",
+      "default": [],
+      "description": "Parent directories searched recursively for Git worktrees. Leave empty to watch only entries in repositories.",
+      "items": {
+        "$ref": "#/$defs/path"
+      },
+      "uniqueItems": true
+    },
+    "repositories": {
+      "type": "array",
+      "default": [],
+      "description": "Explicit Git worktrees to watch, additive to discovery_roots. Use a path string normally, or an object when this repository needs setting overrides.",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/path"
+          },
+          {
+            "$ref": "#/$defs/repository"
+          }
+        ]
+      }
+    },
+    "exclude_repositories": {
+      "type": "array",
+      "default": [],
+      "description": "Absolute or ~-relative glob patterns for repositories that must not be watched, including repositories found below discovery_roots.",
+      "items": {
+        "$ref": "#/$defs/path"
+      },
+      "uniqueItems": true
+    },
+    "ignore_directories": {
+      "type": "array",
+      "default": [
+        ".git",
+        ".hg",
+        ".svn",
+        "node_modules",
+        ".direnv",
+        ".cache",
+        "dist",
+        "build",
+        "target",
+        "coverage",
+        ".next",
+        ".turbo",
+        ".gradle",
+        "__pycache__"
+      ],
+      "description": "Directory basenames excluded at any depth from Watchman triggers and snapshots. Source-repository Git ignore rules are applied separately.",
+      "items": {
+        "$ref": "#/$defs/directoryName"
+      },
+      "uniqueItems": true
+    },
+    "store_dir": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/path"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Directory containing private Git history stores. Null selects the operating system's local user-data directory."
+    },
+    "max_file_size_mb": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 10,
+      "description": "Maximum regular-file size, in MiB, retained in history. A detailed repository entry can override it."
+    },
+    "discovery_max_depth": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 4,
+      "description": "Maximum directory depth searched below each discovery root. Worktrees and known heavy directories stop traversal early."
+    },
+    "discovery_interval_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 60,
+      "description": "How often the daemon reconciles discovered repositories and saved Watchman triggers. File snapshots remain event-driven and do not wait for this interval."
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "description": "An absolute path or a path beginning with ~. Environment-variable expansion is not performed."
+    },
+    "directoryName": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "enum": [
+          ".",
+          ".."
+        ]
+      },
+      "pattern": "^[^/\\\\]+$",
+      "description": "A directory basename, not a path."
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/path",
+          "description": "The Git worktree root. Detailed entries are also explicit repositories, even when discovery_roots is empty."
+        },
+        "ignore_directories": {
+          "type": "object",
+          "additionalProperties": false,
+          "default": {},
+          "description": "Per-repository changes applied to the global ignore_directories list. Removal is applied after addition, so remove wins if a name appears in both arrays.",
+          "properties": {
+            "add": {
+              "type": "array",
+              "default": [],
+              "description": "Directory basenames additionally ignored only in this repository.",
+              "items": {
+                "$ref": "#/$defs/directoryName"
+              },
+              "uniqueItems": true
+            },
+            "remove": {
+              "type": "array",
+              "default": [],
+              "description": "Directory basenames removed from the global Yesterfile ignore list only in this repository. This does not override the repository's own .gitignore rules.",
+              "items": {
+                "$ref": "#/$defs/directoryName"
+              },
+              "uniqueItems": true
+            }
+          }
+        },
+        "max_file_size_mb": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum retained regular-file size for this repository, overriding the global max_file_size_mb."
+        }
+      }
+    }
+  }
+}

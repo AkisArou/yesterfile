@@ -1,8 +1,16 @@
-# local-history
+# yesterfile
 
-local-history keeps event-driven snapshots of Git worktrees without touching
-their branches, index, or object database. Watchman reports changed paths and a
-small Rust helper commits the resulting tree to a private bare Git repository.
+AI coding agents, formatters, generators, and scripts can rewrite a project
+while its editor is closed. Editor undo history cannot see those changes, and
+normal Git only preserves the states you deliberately commit. Yesterfile fills
+that recovery gap with an always-on, local timeline of settled filesystem
+changes.
+
+Yesterfile keeps event-driven snapshots of Git worktrees without touching their
+branches, index, or object database. Watchman reports changed paths and a small
+Rust helper commits each resulting state to a private bare Git repository.
+Rapid write bursts may be coalesced into one settled snapshot, which avoids
+half-written states and process-per-event overhead.
 
 There are no editor hooks. Changes made by Neovim, Codex, formatters, scripts,
 or other editors follow the same Watchman path, including while Neovim is
@@ -21,15 +29,15 @@ notifications on Windows.
 
 ~~~sh
 cargo install --path .
-local-history init
+yesterfile init
 ~~~
 
 Edit the generated config, inspect the result, and perform the first
 registration:
 
 ~~~sh
-local-history discover
-local-history daemon --once
+yesterfile discover
+yesterfile daemon --once
 ~~~
 
 Then install the service appropriate for the platform from [contrib](contrib).
@@ -40,6 +48,7 @@ The generated configuration is:
 
 ~~~json
 {
+  "$schema": "https://raw.githubusercontent.com/AkisArou/yesterfile/main/yesterfile.schema.json",
   "discovery_roots": [],
   "repositories": [],
   "exclude_repositories": [],
@@ -74,18 +83,36 @@ repositories.
 "repositories" contains explicit worktrees. It is always additive. When
 "discovery_roots" is empty, only "repositories" is used.
 
-For example:
+The "$schema" property gives JSON-aware editors validation, completion, and
+hover documentation from [yesterfile.schema.json](yesterfile.schema.json).
+
+An optimized real-world config normally omits inherited defaults:
 
 ~~~json
 {
+  "$schema": "https://raw.githubusercontent.com/AkisArou/yesterfile/main/yesterfile.schema.json",
   "discovery_roots": ["~/Projects"],
-  "repositories": ["~/dotfiles"],
+  "repositories": [
+    "~/dotfiles",
+    {
+      "path": "~/Projects/project-that-keeps-build",
+      "ignore_directories": {
+        "remove": ["build"],
+        "add": ["generated"]
+      },
+      "max_file_size_mb": 25
+    }
+  ],
   "exclude_repositories": ["~/Projects/archive/**"]
 }
 ~~~
 
 Missing properties receive their documented defaults, so a small config is
-valid. Repository exclusions accept glob patterns after ~ expansion.
+valid. A repository object inherits global settings: "add" and "remove"
+modify the global directory ignore list for that worktree, and
+"max_file_size_mb" replaces the global size limit. The remove list does not
+override that repository's own Git ignore rules. Repository exclusions accept
+glob patterns after ~ expansion.
 
 ### Platform paths
 
@@ -93,12 +120,12 @@ valid. Repository exclusions accept glob patterns after ~ expansion.
 
 | Platform | Config | Snapshot data | Runtime state |
 | --- | --- | --- | --- |
-| Linux | $XDG_CONFIG_HOME/local-history/config.json | $XDG_DATA_HOME/local-history | $XDG_STATE_HOME/local-history |
-| Linux fallback | ~/.config/local-history/config.json | ~/.local/share/local-history | ~/.local/state/local-history |
-| macOS | ~/Library/Application Support/local-history/config.json | ~/Library/Application Support/local-history | snapshot data under state/ |
-| Windows | %APPDATA%\local-history\config.json | %LOCALAPPDATA%\local-history | snapshot data under state\ |
+| Linux | $XDG_CONFIG_HOME/yesterfile/config.json | $XDG_DATA_HOME/yesterfile | $XDG_STATE_HOME/yesterfile |
+| Linux fallback | ~/.config/yesterfile/config.json | ~/.local/share/yesterfile | ~/.local/state/yesterfile |
+| macOS | ~/Library/Application Support/yesterfile/config.json | ~/Library/Application Support/yesterfile | snapshot data under state/ |
+| Windows | %APPDATA%\yesterfile\config.json | %LOCALAPPDATA%\yesterfile | snapshot data under state\ |
 
-Run "local-history paths" to see the resolved paths. Snapshot databases are
+Run "yesterfile paths" to see the resolved paths. Snapshot databases are
 user data; trigger registrations and other reconstructible bookkeeping use the
 state directory.
 
@@ -139,7 +166,7 @@ list in .watchmanconfig:
 ~~~
 
 Watchman applies these top-level exclusions at the OS notification layer on
-Linux. local-history never creates or modifies .watchmanconfig, because doing
+Linux. yesterfile never creates or modifies .watchmanconfig, because doing
 so would dirty source repositories.
 
 ## How snapshots are written
@@ -170,18 +197,18 @@ configuration stops future captures without deleting its existing data.
 
 ~~~sh
 # Full snapshot now
-local-history capture ~/Projects/example
+yesterfile capture ~/Projects/example
 
 # Machine-readable history affecting one file
-local-history list --file ~/Projects/example/src/main.rs --json
+yesterfile list --file ~/Projects/example/src/main.rs --json
 
 # Recover a selected version
-local-history show \
+yesterfile show \
   --file ~/Projects/example/src/main.rs \
   --revision <commit>
 
 # Verify platform locations
-local-history paths
+yesterfile paths
 ~~~
 
 Deleting a repository does not delete its private history database. Removing a
@@ -193,26 +220,26 @@ while retaining its stored snapshots for manual recovery.
 ### Linux/systemd
 
 ~~~sh
-install -Dm644 contrib/systemd/local-history.service \
-  ~/.config/systemd/user/local-history.service
+install -Dm644 contrib/systemd/yesterfile.service \
+  ~/.config/systemd/user/yesterfile.service
 systemctl --user daemon-reload
-systemctl --user enable --now local-history.service
+systemctl --user enable --now yesterfile.service
 ~~~
 
 ### macOS/launchd
 
-Replace __LOCAL_HISTORY_BIN__ in the supplied plist with the absolute binary
+Replace __YESTERFILE_BIN__ in the supplied plist with the absolute binary
 path, copy it to ~/Library/LaunchAgents/, then bootstrap it:
 
 ~~~sh
 launchctl bootstrap gui/"$(id -u)" \
-  ~/Library/LaunchAgents/io.github.akisArou.local-history.plist
+  ~/Library/LaunchAgents/io.github.akisArou.yesterfile.plist
 ~~~
 
 ### Windows
 
 Run [contrib/windows/install-task.ps1](contrib/windows/install-task.ps1) in
-PowerShell after local-history.exe and watchman.exe are available on PATH. It
+PowerShell after yesterfile.exe and watchman.exe are available on PATH. It
 creates a per-user task that starts the daemon at logon.
 
 ## Security and backup

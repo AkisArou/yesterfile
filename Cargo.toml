@@ -1,10 +1,10 @@
 [package]
-name = "local-history"
+name = "yesterfile"
 version = "0.1.0"
 edition = "2024"
 description = "Event-driven, Git-backed local file history powered by Watchman"
 license = "MIT"
-repository = "https://github.com/AkisArou/local-history"
+repository = "https://github.com/AkisArou/yesterfile"
 rust-version = "1.85"
 
 [dependencies]

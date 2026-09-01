@@ -1,26 +1,16 @@
 {
+  "$schema": "https://raw.githubusercontent.com/AkisArou/yesterfile/main/yesterfile.schema.json",
   "discovery_roots": ["~/Projects"],
-  "repositories": ["~/dotfiles"],
-  "exclude_repositories": ["~/Projects/archive/**"],
-  "ignore_directories": [
-    ".git",
-    ".hg",
-    ".svn",
-    "node_modules",
-    ".direnv",
-    ".cache",
-    "dist",
-    "build",
-    "target",
-    "coverage",
-    ".next",
-    ".turbo",
-    ".gradle",
-    "__pycache__"
+  "repositories": [
+    "~/dotfiles",
+    {
+      "path": "~/Projects/project-that-keeps-build",
+      "ignore_directories": {
+        "remove": ["build"],
+        "add": ["generated"]
+      },
+      "max_file_size_mb": 25
+    }
   ],
-  "store_dir": null,
-  "max_file_size_mb": 10,
-  "discovery_max_depth": 4,
-  "discovery_interval_seconds": 60
+  "exclude_repositories": ["~/Projects/archive/**"]
 }
-

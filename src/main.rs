@@ -89,7 +89,7 @@ struct PathsOutput {
 
 fn main() {
     if let Err(error) = run() {
-        eprintln!("local-history: {error:#}");
+        eprintln!("yesterfile: {error:#}");
         std::process::exit(1);
     }
 }
@@ -171,7 +171,7 @@ fn run() -> Result<()> {
             let config = RuntimeConfig::load(cli.config.as_deref())?;
             if let Some(commit) = watchman::capture_trigger(&config, &project)? {
                 eprintln!(
-                    "local-history: captured {} at {}",
+                    "yesterfile: captured {} at {}",
                     project.display(),
                     short_hash(&commit)
                 );
@@ -192,7 +192,7 @@ fn run_daemon(config_path: Option<&Path>, once: bool) -> Result<()> {
                     return Ok(());
                 }
             }
-            Err(error) if !once => eprintln!("local-history: reconciliation failed: {error:#}"),
+            Err(error) if !once => eprintln!("yesterfile: reconciliation failed: {error:#}"),
             Err(error) => return Err(error),
         }
         thread::sleep(Duration::from_secs(interval));

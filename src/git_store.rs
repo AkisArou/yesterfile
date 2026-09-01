@@ -13,7 +13,10 @@ use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{config::RuntimeConfig, discovery::git_root};
+use crate::{
+    config::{ProjectSettings, RuntimeConfig},
+    discovery::git_root,
+};
 
 const HISTORY_REF: &str = "refs/heads/history";
 
@@ -30,21 +33,22 @@ struct ProjectMetadata {
     created_at: DateTime<Utc>,
 }
 
-pub struct ProjectStore<'a> {
-    config: &'a RuntimeConfig,
+pub struct ProjectStore {
+    settings: ProjectSettings,
     root: PathBuf,
     project_dir: PathBuf,
     git_dir: PathBuf,
     index_file: PathBuf,
 }
 
-impl<'a> ProjectStore<'a> {
-    pub fn open(config: &'a RuntimeConfig, root: &Path) -> Result<Self> {
+impl ProjectStore {
+    pub fn open(config: &RuntimeConfig, root: &Path) -> Result<Self> {
         let root = fs::canonicalize(root)
             .with_context(|| format!("failed to canonicalize {}", root.display()))?;
         let project_dir = config.store_dir.join("repos").join(project_id(&root));
+        let settings = config.project_settings(&root)?;
         let store = Self {
-            config,
+            settings,
             root,
             git_dir: project_dir.join("history.git"),
             index_file: project_dir.join("index"),
@@ -54,7 +58,7 @@ impl<'a> ProjectStore<'a> {
         Ok(store)
     }
 
-    pub fn for_file(config: &'a RuntimeConfig, file: &Path) -> Result<Option<(Self, PathBuf)>> {
+    pub fn for_file(config: &RuntimeConfig, file: &Path) -> Result<Option<(Self, PathBuf)>> {
         let absolute = fs::canonicalize(file)
             .or_else(|_| absolute_without_canonicalizing(file))
             .with_context(|| format!("failed to resolve {}", file.display()))?;
@@ -229,8 +233,8 @@ impl<'a> ProjectStore<'a> {
                 .output()
                 .context("failed to initialize history repository")?;
             ensure_success(&output, "git init --bare")?;
-            self.git_config("user.name", "local-history")?;
-            self.git_config("user.email", "local-history@localhost")?;
+            self.git_config("user.name", "yesterfile")?;
+            self.git_config("user.email", "yesterfile@localhost")?;
             self.git_config("gc.auto", "256")?;
         }
 
@@ -272,10 +276,10 @@ impl<'a> ProjectStore<'a> {
             .env("GIT_DIR", &self.git_dir)
             .env("GIT_WORK_TREE", &self.root)
             .env("GIT_INDEX_FILE", &self.index_file)
-            .env("GIT_AUTHOR_NAME", "local-history")
-            .env("GIT_AUTHOR_EMAIL", "local-history@localhost")
-            .env("GIT_COMMITTER_NAME", "local-history")
-            .env("GIT_COMMITTER_EMAIL", "local-history@localhost");
+            .env("GIT_AUTHOR_NAME", "yesterfile")
+            .env("GIT_AUTHOR_EMAIL", "yesterfile@localhost")
+            .env("GIT_COMMITTER_NAME", "yesterfile")
+            .env("GIT_COMMITTER_EMAIL", "yesterfile@localhost");
         command
     }
 
@@ -413,8 +417,7 @@ impl<'a> ProjectStore<'a> {
         validate_relative_path(relative)?;
         if relative.components().any(|component| {
             component.as_os_str().to_str().is_some_and(|name| {
-                self.config
-                    .values
+                self.settings
                     .ignore_directories
                     .iter()
                     .any(|ignored| ignored == name)
@@ -425,7 +428,7 @@ impl<'a> ProjectStore<'a> {
         let absolute = self.root.join(relative);
         match fs::symlink_metadata(&absolute) {
             Ok(metadata) if metadata.file_type().is_file() => {
-                Ok(metadata.len() <= self.config.max_file_size_bytes())
+                Ok(metadata.len() <= self.settings.max_file_size_bytes())
             }
             Ok(_) => Ok(true),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(true),
@@ -509,12 +512,12 @@ impl<'a> ProjectStore<'a> {
             .output()
         {
             Ok(output) if !output.status.success() => eprintln!(
-                "local-history: automatic Git maintenance failed for {}: {}",
+                "yesterfile: automatic Git maintenance failed for {}: {}",
                 self.root.display(),
                 String::from_utf8_lossy(&output.stderr).trim()
             ),
             Err(error) => eprintln!(
-                "local-history: could not start automatic Git maintenance for {}: {error}",
+                "yesterfile: could not start automatic Git maintenance for {}: {error}",
                 self.root.display()
             ),
             _ => {}

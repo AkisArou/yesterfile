@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    config::RuntimeConfig,
+    config::{ProjectSettings, RuntimeConfig},
     discovery,
     git_store::{ProjectStore, project_id},
 };
@@ -60,7 +60,7 @@ pub fn reconcile(config: &RuntimeConfig) -> Result<usize> {
     {
         if let Err(error) = delete_trigger(&stale.watch_root, &stale.trigger_name) {
             eprintln!(
-                "local-history: failed to remove stale trigger {}: {error:#}",
+                "yesterfile: failed to remove stale trigger {}: {error:#}",
                 stale.trigger_name
             );
         }
@@ -72,7 +72,7 @@ pub fn reconcile(config: &RuntimeConfig) -> Result<usize> {
             Ok(registration) => registrations.push(registration),
             Err(error) => {
                 eprintln!(
-                    "local-history: failed to register {}: {error:#}",
+                    "yesterfile: failed to register {}: {error:#}",
                     project.display()
                 );
             }
@@ -115,11 +115,12 @@ pub fn capture_trigger(config: &RuntimeConfig, project: &Path) -> Result<Option<
 }
 
 fn ensure_project(config: &RuntimeConfig, project: &Path) -> Result<Registration> {
+    let settings = config.project_settings(project)?;
     let store = ProjectStore::open(config, project)?;
     if !store.has_history()? {
         if let Some(commit) = store.capture_full("initial")? {
             eprintln!(
-                "local-history: initialized {} at {}",
+                "yesterfile: initialized {} at {}",
                 project.display(),
                 short_hash(&commit)
             );
@@ -138,8 +139,8 @@ fn ensure_project(config: &RuntimeConfig, project: &Path) -> Result<Registration
         .and_then(Value::as_str)
         .map(str::to_owned);
 
-    let prefix = format!("local-history-{}-", project_id(project));
-    let trigger_name = format!("{prefix}{}", trigger_fingerprint(config)?);
+    let prefix = format!("yesterfile-{}-", project_id(project));
+    let trigger_name = format!("{prefix}{}", trigger_fingerprint(&settings)?);
     let triggers = list_triggers(&watch_root)?;
     let mut found = false;
     for name in triggers {
@@ -156,12 +157,13 @@ fn ensure_project(config: &RuntimeConfig, project: &Path) -> Result<Registration
         store.capture_full("trigger-reconcile")?;
         register_trigger(
             config,
+            &settings,
             project,
             &watch_root,
             relative_root.as_deref(),
             &trigger_name,
         )?;
-        eprintln!("local-history: watching {}", project.display());
+        eprintln!("yesterfile: watching {}", project.display());
     }
 
     Ok(Registration {
@@ -177,12 +179,13 @@ fn watch_project(project: &Path) -> Result<Value> {
 
 fn register_trigger(
     config: &RuntimeConfig,
+    settings: &ProjectSettings,
     project: &Path,
     watch_root: &Path,
     relative_root: Option<&str>,
     trigger_name: &str,
 ) -> Result<()> {
-    let executable = std::env::current_exe().context("cannot locate local-history executable")?;
+    let executable = std::env::current_exe().context("cannot locate yesterfile executable")?;
     let mut trigger = json!({
         "name": trigger_name,
         "command": [
@@ -193,7 +196,7 @@ fn register_trigger(
             "--project",
             project
         ],
-        "expression": watch_expression(&config.values.ignore_directories),
+        "expression": watch_expression(&settings.ignore_directories),
         "stdin": ["name", "exists", "type", "size"],
         "max_files_stdin": 200000
     });
@@ -283,10 +286,10 @@ fn watchman_request(request: Value) -> Result<Value> {
     Ok(response)
 }
 
-fn trigger_fingerprint(config: &RuntimeConfig) -> Result<String> {
+fn trigger_fingerprint(settings: &ProjectSettings) -> Result<String> {
     let mut hasher = Sha256::new();
-    hasher.update(serde_json::to_vec(&config.values.ignore_directories)?);
-    hasher.update(config.max_file_size_bytes().to_le_bytes());
+    hasher.update(serde_json::to_vec(&settings.ignore_directories)?);
+    hasher.update(settings.max_file_size_bytes().to_le_bytes());
     let digest = hasher.finalize();
     Ok(digest[..4]
         .iter()
@@ -367,12 +370,12 @@ mod tests {
 
     #[test]
     fn trigger_fingerprints_change_with_ignore_configuration() {
-        let temp = tempfile::tempdir().unwrap();
-        let mut first = RuntimeConfig::load(Some(&temp.path().join("missing.json"))).unwrap();
-        first.store_dir = temp.path().join("data");
-        first.state_dir = temp.path().join("state");
+        let first = ProjectSettings {
+            ignore_directories: vec!["node_modules".into()],
+            max_file_size_mb: 10,
+        };
         let mut second = first.clone();
-        second.values.ignore_directories.push("vendor".into());
+        second.ignore_directories.push("vendor".into());
         assert_ne!(
             trigger_fingerprint(&first).unwrap(),
             trigger_fingerprint(&second).unwrap()
