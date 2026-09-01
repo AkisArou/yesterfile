@@ -169,6 +169,12 @@ Watchman applies these top-level exclusions at the OS notification layer on
 Linux. yesterfile never creates or modifies .watchmanconfig, because doing
 so would dirty source repositories.
 
+Yesterfile's config intentionally does not proxy arbitrary Watchman root
+settings. Those settings affect every Watchman client sharing the root, are
+loaded only when the watch is established, and require removing and re-adding
+the watch after a change. Keep them explicit and repository-owned in
+.watchmanconfig; Yesterfile generates only its own saved-trigger query.
+
 ## How snapshots are written
 
 Watchman saved triggers batch settled filesystem events and pass JSON path
